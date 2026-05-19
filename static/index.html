@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoulScribe - YouTube Transcriber</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f111a;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent: #ec4899;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4rem 2rem;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.15), transparent 25%);
+            background-attachment: fixed;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-bar {
+            position: relative;
+            display: flex;
+            width: 100%;
+        }
+
+        input[type="url"] {
+            width: 100%;
+            padding: 1.2rem 1.5rem;
+            font-size: 1.1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        input[type="url"]::placeholder {
+            color: rgba(148, 163, 184, 0.5);
+        }
+
+        input[type="url"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .toggle-btn.active {
+            background: var(--glass-bg);
+            color: var(--text-main);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        button.submit-btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+            font-family: inherit;
+        }
+
+        button.submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        }
+
+        button.submit-btn:active {
+            transform: translateY(1px);
+        }
+
+        button.submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Results Area */
+        .results-area {
+            display: none;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--glass-border);
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .results-area.visible {
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+        }
+
+        .status-badge.success { color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+        .status-badge.processing { color: var(--accent); border-color: rgba(236, 72, 153, 0.3); }
+        .status-badge.error { color: var(--error); border-color: rgba(239, 68, 68, 0.3); }
+
+        .transcript-box {
+            width: 100%;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            color: var(--text-main);
+            font-size: 1rem;
+            line-height: 1.6;
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) rgba(0,0,0,0.2);
+        }
+
+        .transcript-box::-webkit-scrollbar {
+            width: 8px;
+        }
+        .transcript-box::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+        .transcript-box::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 12px;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        .spinner.visible {
+            display: block;
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .controls { flex-direction: column; gap: 1rem; }
+            button.submit-btn { width: 100%; }
+            .container { padding: 1.5rem; }
+            h1 { font-size: 2.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>SoulScribe API</h1>
+    <p class="subtitle">Extract captions from any YouTube video in seconds.</p>
+
+    <div class="container">
+        <div class="input-group">
+            <div class="search-bar">
+                <input type="url" id="urlInput" placeholder="Paste YouTube URL here (e.g., https://youtube.com/watch?v=...)" required autocomplete="off">
+            </div>
+            
+            <div class="controls">
+                <div class="toggle-group">
+                    <button class="toggle-btn active" id="btnSync" onclick="setMode('sync')">Fast (Sync)</button>
+                    <button class="toggle-btn" id="btnAsync" onclick="setMode('async')">Deep (Async)</button>
+                </div>
+                <button class="submit-btn" id="submitBtn" onclick="transcribe()">Transcribe</button>
+            </div>
+        </div>
+
+        <div class="spinner" id="spinner"></div>
+
+        <div class="results-area" id="resultsArea">
+            <div class="status-badge success" id="statusBadge">
+                <span id="statusIcon">●</span> <span id="statusText">Success (Native)</span>
+            </div>
+            <textarea class="transcript-box" id="transcriptBox" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        let mode = 'sync'; // 'sync' or 'async'
+        let pollInterval = null;
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.getElementById('btnSync').classList.toggle('active', mode === 'sync');
+            document.getElementById('btnAsync').classList.toggle('active', mode === 'async');
+        }
+
+        function setUIState(state) {
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('spinner');
+            const resultsArea = document.getElementById('resultsArea');
+            const urlInput = document.getElementById('urlInput');
+
+            if (state === 'loading') {
+                btn.disabled = true;
+                btn.innerText = 'Processing...';
+                urlInput.disabled = true;
+                resultsArea.classList.remove('visible');
+                spinner.classList.add('visible');
+            } else if (state === 'idle') {
+                btn.disabled = false;
+                btn.innerText = 'Transcribe';
+                urlInput.disabled = false;
+                spinner.classList.remove('visible');
+            }
+        }
+
+        function showResult(status, text, source) {
+            setUIState('idle');
+            const resultsArea = document.getElementById('resultsArea');
+            const statusBadge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+            const transcriptBox = document.getElementById('transcriptBox');
+
+            resultsArea.classList.add('visible');
+            transcriptBox.value = text;
+
+            // Reset classes
+            statusBadge.className = 'status-badge';
+            
+            if (status === 'success') {
+                statusBadge.classList.add('success');
+                let sourceLabel = source === 'youtube_captions' ? 'Native Captions' : 'Whisper AI generated';
+                statusText.innerText = `Success (${sourceLabel})`;
+            } else if (status === 'error') {
+                statusBadge.classList.add('error');
+                statusText.innerText = `Error`;
+            }
+        }
+
+        async function transcribe() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) {
+                alert('Please enter a valid YouTube URL');
+                return;
+            }
+
+            setUIState('loading');
+            clearInterval(pollInterval); // Clear any existing polling
+
+            try {
+                if (mode === 'sync') {
+                    // SYNCHRONOUS REQUEST
+                    const res = await fetch('/captions/sync', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok) {
+                        showResult('success', data.text, data.source);
+                    } else {
+                        showResult('error', data.detail || 'An error occurred during transcription.', '');
+                    }
+
+                } else {
+                    // ASYNCHRONOUS REQUEST (Background Job)
+                    const res = await fetch('/captions', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url })
+                    });
+                    
+                    const data = await res.json();
+                    
+                    if (res.ok && data.job_id) {
+                        pollJobStatus(data.job_id);
+                    } else {
+                        showResult('error', data.detail || 'Failed to start background job.', '');
+                    }
+                }
+            } catch (err) {
+                showResult('error', 'Network error or server is unreachable.', '');
+            }
+        }
+
+        async function pollJobStatus(jobId) {
+            const statusBadge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+            const resultsArea = document.getElementById('resultsArea');
+            const transcriptBox = document.getElementById('transcriptBox');
+            
+            // Show polling status
+            resultsArea.classList.add('visible');
+            statusBadge.className = 'status-badge processing';
+            statusText.innerText = 'Transcribing with AI (this may take a few minutes)...';
+            transcriptBox.value = 'Downloading audio and running Whisper models...';
+
+            pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/status/${jobId}`);
+                    const data = await res.json();
+
+                    if (data.status === 'done') {
+                        clearInterval(pollInterval);
+                        showResult('success', data.result.text, data.result.source);
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        showResult('error', data.error || 'Transcription job failed.', '');
+                    }
+                } catch (err) {
+                    console.error("Polling error", err);
+                }
+            }, 3000); // Poll every 3 seconds
+        }
+    </script>
+</body>
+</html>
