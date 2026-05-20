@@ -1,12 +1,11 @@
 import uuid
+import time
 from contextlib import asynccontextmanager
 from typing import Dict
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-
 from models import CaptionRequest, CaptionResponse, JobStatus, Segment
 from services.youtube import extract_video_id, get_youtube_captions
 from services.whisper import transcribe_from_url
@@ -38,14 +37,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 
 # ── Core caption logic ────────────────────────────────────────────────────────
 def run_caption_pipeline(job_id: str, request: CaptionRequest):
     """Runs in background. Updates job store when done."""
     try:
+        started_at = time.time()
         jobs[job_id].status = "processing"
+        jobs[job_id].started_at = started_at
 
         video_id = extract_video_id(request.url)
 
@@ -60,18 +59,24 @@ def run_caption_pipeline(job_id: str, request: CaptionRequest):
         if not result:
             raise RuntimeError("Both caption methods failed")
 
+        elapsed = round(time.time() - started_at, 2)
+
         jobs[job_id].status = "done"
+        jobs[job_id].elapsed_seconds = elapsed
         jobs[job_id].result = CaptionResponse(
             source=result["source"],
             language=result["language"],
             text=result["text"],
             video_id=video_id,
+            elapsed_seconds=elapsed,
             segments=[Segment(**s) for s in result["segments"]] if request.timestamps else [],
         )
 
     except Exception as e:
         jobs[job_id].status = "failed"
         jobs[job_id].error = str(e)
+        if jobs[job_id].started_at:
+            jobs[job_id].elapsed_seconds = round(time.time() - jobs[job_id].started_at, 2)
         print(f"[{job_id}] Failed: {e}")
 
 
@@ -103,7 +108,11 @@ def get_job_status(job_id: str):
     """Poll this endpoint to check job progress and get results."""
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="Job not found")
-    return jobs[job_id]
+    job = jobs[job_id]
+    # Live elapsed time while job is still running
+    if job.status == "processing" and job.started_at:
+        job.elapsed_seconds = round(time.time() - job.started_at, 2)
+    return job
 
 
 @app.post("/captions/sync", response_model=CaptionResponse)
@@ -113,6 +122,7 @@ def get_captions_sync(request: CaptionRequest):
     Fine for YouTube captions (fast). May timeout for long Whisper jobs.
     Use /captions (async) for unknown videos.
     """
+    started_at = time.time()
     video_id = extract_video_id(request.url)
 
     result = get_youtube_captions(video_id, languages=request.languages)
@@ -123,11 +133,14 @@ def get_captions_sync(request: CaptionRequest):
     if not result:
         raise HTTPException(status_code=422, detail="Could not extract captions via any method")
 
+    elapsed = round(time.time() - started_at, 2)
+
     return CaptionResponse(
         source=result["source"],
         language=result["language"],
         text=result["text"],
         video_id=video_id,
+        elapsed_seconds=elapsed,
         segments=[Segment(**s) for s in result["segments"]] if request.timestamps else [],
     )
 

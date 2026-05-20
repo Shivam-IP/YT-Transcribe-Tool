@@ -31,6 +31,7 @@ class CaptionResponse(BaseModel):
     text: str
     segments: List[Segment] = []
     video_id: str
+    elapsed_seconds: Optional[float] = None   # total time taken
 
 
 class ErrorResponse(BaseModel):
@@ -43,3 +44,5 @@ class JobStatus(BaseModel):
     status: str           # "pending" | "processing" | "done" | "failed"
     result: Optional[CaptionResponse] = None
     error: Optional[str] = None
+    started_at: Optional[float] = None        # unix timestamp when job started
+    elapsed_seconds: Optional[float] = None   # updated every poll

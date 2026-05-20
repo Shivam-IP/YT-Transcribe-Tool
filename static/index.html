@@ -3,423 +3,583 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Transcriber</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <title>YT Transcriber</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f111a;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --accent: #ec4899;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --success: #10b981;
-            --error: #ef4444;
+            --bg: #080a0f;
+            --surface: #0d1017;
+            --border: rgba(255,255,255,0.07);
+            --border-hover: rgba(255,255,255,0.15);
+            --primary: #00e5ff;
+            --primary-dim: rgba(0,229,255,0.1);
+            --accent: #ff3d71;
+            --accent-dim: rgba(255,61,113,0.1);
+            --green: #00e096;
+            --green-dim: rgba(0,224,150,0.1);
+            --text: #e8eaf0;
+            --muted: #4a5568;
+            --muted2: #2d3748;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            font-family: 'Syne', sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 4rem 2rem;
-            background-image: 
-                radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
-                radial-gradient(circle at 85% 30%, rgba(236, 72, 153, 0.15), transparent 25%);
-            background-attachment: fixed;
+            justify-content: flex-start;
+            padding: 3rem 1.5rem 5rem;
+            overflow-x: hidden;
+        }
+
+        /* Subtle grid bg */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Glows */
+        body::after {
+            content: '';
+            position: fixed;
+            top: -20%;
+            left: -10%;
+            width: 60%;
+            height: 60%;
+            background: radial-gradient(ellipse, rgba(0,229,255,0.04) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .wrap {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 720px;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 3rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .eyebrow {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--primary);
+            text-transform: uppercase;
+            opacity: 0.8;
         }
 
         h1 {
-            font-size: 3rem;
+            font-size: clamp(2rem, 5vw, 3.2rem);
             font-weight: 800;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(to right, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-align: center;
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            color: var(--text);
         }
 
-        p.subtitle {
-            color: var(--text-muted);
-            margin-bottom: 3rem;
-            text-align: center;
-            font-size: 1.1rem;
+        h1 span {
+            color: var(--primary);
         }
 
-        .container {
-            width: 100%;
-            max-width: 800px;
-            background: var(--glass-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin-top: 0.3rem;
+            font-family: 'JetBrains Mono', monospace;
         }
 
-        .container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+        /* Card */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: border-color 0.3s;
         }
 
-        .input-group {
+        .card:focus-within {
+            border-color: var(--border-hover);
+        }
+
+        /* URL input row */
+        .input-row {
             display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
         }
 
-        .search-bar {
-            position: relative;
-            display: flex;
-            width: 100%;
-        }
-
-        input[type="url"] {
-            width: 100%;
-            padding: 1.2rem 1.5rem;
-            font-size: 1.1rem;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            color: var(--text-main);
+        .url-input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.85rem 1.1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text);
             outline: none;
-            transition: all 0.3s ease;
-            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        input[type="url"]::placeholder {
-            color: rgba(148, 163, 184, 0.5);
-        }
+        .url-input::placeholder { color: var(--muted); }
 
-        input[type="url"]:focus {
+        .url-input:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+            box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
         }
 
-        .controls {
+        .btn-go {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            border-radius: 10px;
+            padding: 0.85rem 1.5rem;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+            white-space: nowrap;
+            letter-spacing: 0.01em;
+        }
+
+        .btn-go:hover { opacity: 0.88; transform: translateY(-1px); }
+        .btn-go:active { transform: translateY(0); }
+        .btn-go:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+        /* Mode toggle */
+        .mode-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mode-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-right: 0.25rem;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.3rem 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: var(--primary-dim);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── Timer ─────────────────────────────────────────── */
+        .timer-block {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.1rem 1.25rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .timer-block.visible { display: block; }
+
+        .timer-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 0.75rem;
         }
 
-        .toggle-group {
+        .timer-status {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.5rem;
-            border-radius: 12px;
-            border: 1px solid var(--glass-border);
-        }
-
-        .toggle-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            font-family: inherit;
-        }
-
-        .toggle-btn.active {
-            background: var(--glass-bg);
-            color: var(--text-main);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-
-        button.submit-btn {
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            color: white;
-            border: none;
-            padding: 0.8rem 2rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-            font-family: inherit;
-        }
-
-        button.submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
-        }
-
-        button.submit-btn:active {
-            transform: translateY(1px);
-        }
-
-        button.submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* Results Area */
-        .results-area {
-            display: none;
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 1px solid var(--glass-border);
-            animation: fadeIn 0.5s ease forwards;
-        }
-
-        .results-area.visible {
-            display: block;
-        }
-
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
             gap: 0.5rem;
-            padding: 0.4rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--glass-border);
         }
 
-        .status-badge.success { color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
-        .status-badge.processing { color: var(--accent); border-color: rgba(236, 72, 153, 0.3); }
-        .status-badge.error { color: var(--error); border-color: rgba(239, 68, 68, 0.3); }
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: pulse 1.2s ease-in-out infinite;
+        }
 
-        .transcript-box {
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%       { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        .timer-count {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+        .timer-count span {
+            font-size: 0.8rem;
+            color: var(--muted);
+            font-weight: 400;
+        }
+
+        /* Progress bar */
+        .bar-track {
+            height: 3px;
+            background: var(--muted2);
+            border-radius: 99px;
+            overflow: hidden;
+            margin-bottom: 0.6rem;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 99px;
+            background: var(--primary);
+            transition: width 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            animation: sheen 1.5s infinite;
+        }
+
+        @keyframes sheen {
+            0%   { left: -100%; }
+            100% { left: 200%; }
+        }
+
+        .timer-hint {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            color: var(--muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* ── Results ───────────────────────────────────────── */
+        .result-block {
+            display: none;
+            margin-top: 1.5rem;
+        }
+
+        .result-block.visible { display: block; }
+
+        .result-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            border: 1px solid;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .tag.success { color: var(--green);  border-color: rgba(0,224,150,0.3);  background: var(--green-dim); }
+        .tag.error   { color: var(--accent); border-color: rgba(255,61,113,0.3); background: var(--accent-dim); }
+        .tag.info    { color: var(--primary); border-color: rgba(0,229,255,0.3); background: var(--primary-dim); }
+        .tag.processing { color: var(--primary); border-color: rgba(0,229,255,0.3); background: var(--primary-dim); }
+
+        .time-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-left: auto;
+        }
+
+        .transcript {
             width: 100%;
-            height: 300px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            color: var(--text-main);
-            font-size: 1rem;
-            line-height: 1.6;
+            height: 280px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.1rem 1.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            color: var(--text);
             resize: vertical;
             outline: none;
-            font-family: inherit;
             scrollbar-width: thin;
-            scrollbar-color: var(--primary) rgba(0,0,0,0.2);
+            scrollbar-color: var(--muted2) transparent;
         }
 
-        .transcript-box::-webkit-scrollbar {
-            width: 8px;
-        }
-        .transcript-box::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-        }
-        .transcript-box::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 12px;
-        }
-
-        /* Spinner */
-        .spinner {
-            display: none;
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 2rem auto;
+        /* Copy button */
+        .copy-btn {
+            margin-top: 0.6rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.35rem 0.8rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            float: right;
         }
 
-        .spinner.visible {
-            display: block;
-        }
+        .copy-btn:hover { border-color: var(--primary); color: var(--primary); }
 
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Responsive */
-        @media (max-width: 600px) {
-            .controls { flex-direction: column; gap: 1rem; }
-            button.submit-btn { width: 100%; }
-            .container { padding: 1.5rem; }
-            h1 { font-size: 2.2rem; }
+        @media (max-width: 560px) {
+            .input-row { flex-direction: column; }
+            .btn-go { width: 100%; }
         }
     </style>
 </head>
 <body>
+<div class="wrap">
 
-    <h1>YouTube Transcriber</h1>
-    <p class="subtitle">Extract captions from any YouTube video in seconds.</p>
+    <header>
+        <div class="eyebrow">// caption extractor v1.0</div>
+        <h1>YT <span>Transcriber</span></h1>
+        <div class="subtitle">youtube captions → whisper fallback</div>
+    </header>
 
-    <div class="container">
-        <div class="input-group">
-            <div class="search-bar">
-                <input type="url" id="urlInput" placeholder="Paste YouTube URL here (e.g., https://youtube.com/watch?v=...)" required autocomplete="off">
-            </div>
-            
-            <div class="controls">
-                <div class="toggle-group">
-                    <button class="toggle-btn active" id="btnSync" onclick="setMode('sync')">Fast (Sync)</button>
-                    <button class="toggle-btn" id="btnAsync" onclick="setMode('async')">Deep (Async)</button>
+    <div class="card">
+        <div class="input-row">
+            <input class="url-input" id="urlInput" type="url"
+                placeholder="https://youtube.com/watch?v=..." autocomplete="off">
+            <button class="btn-go" id="submitBtn" onclick="transcribe()">Run →</button>
+        </div>
+
+        <div class="mode-row">
+            <span class="mode-label">mode:</span>
+            <button class="mode-btn active" id="btnSync"  onclick="setMode('sync')">fast / sync</button>
+            <button class="mode-btn"        id="btnAsync" onclick="setMode('async')">deep / async</button>
+        </div>
+
+        <!-- Timer -->
+        <div class="timer-block" id="timerBlock">
+            <div class="timer-top">
+                <div class="timer-status">
+                    <div class="pulse-dot"></div>
+                    <span id="timerLabel">fetching captions…</span>
                 </div>
-                <button class="submit-btn" id="submitBtn" onclick="transcribe()">Transcribe</button>
+                <div class="timer-count" id="timerCount">0.0 <span>sec</span></div>
+            </div>
+            <div class="bar-track">
+                <div class="bar-fill" id="barFill"></div>
+            </div>
+            <div class="timer-hint">
+                <span>yt captions &lt;3s · whisper fallback 1–3 min</span>
+                <span id="serverElapsed"></span>
             </div>
         </div>
 
-        <div class="spinner" id="spinner"></div>
-
-        <div class="results-area" id="resultsArea">
-            <div class="status-badge success" id="statusBadge">
-                <span id="statusIcon">●</span> <span id="statusText">Success (Native)</span>
+        <!-- Result -->
+        <div class="result-block" id="resultBlock">
+            <div class="result-meta">
+                <div class="tag success" id="sourceTag">NATIVE</div>
+                <div class="tag info"   id="langTag">EN</div>
+                <div class="time-tag"   id="timeTag"></div>
             </div>
-            <textarea class="transcript-box" id="transcriptBox" readonly></textarea>
+            <textarea class="transcript" id="transcriptBox" readonly></textarea>
+            <button class="copy-btn" onclick="copyText()">copy transcript</button>
         </div>
     </div>
 
-    <script>
-        let mode = 'sync'; // 'sync' or 'async'
-        let pollInterval = null;
+</div>
 
-        function setMode(newMode) {
-            mode = newMode;
-            document.getElementById('btnSync').classList.toggle('active', mode === 'sync');
-            document.getElementById('btnAsync').classList.toggle('active', mode === 'async');
+<script>
+    let mode = 'sync';
+    let pollInterval = null;
+    let timerInterval = null;
+    let timerStart = null;
+
+    function setMode(m) {
+        mode = m;
+        document.getElementById('btnSync').classList.toggle('active', m === 'sync');
+        document.getElementById('btnAsync').classList.toggle('active', m === 'async');
+    }
+
+    // ── Timer ─────────────────────────────────────────────
+    function startTimer(label) {
+        timerStart = Date.now();
+        document.getElementById('timerLabel').textContent = label || 'fetching captions…';
+        document.getElementById('timerCount').innerHTML = '0.0 <span>sec</span>';
+        document.getElementById('barFill').style.width = '0%';
+        document.getElementById('serverElapsed').textContent = '';
+        document.getElementById('timerBlock').classList.add('visible');
+        document.getElementById('resultBlock').classList.remove('visible');
+
+        timerInterval = setInterval(() => {
+            const s = (Date.now() - timerStart) / 1000;
+            document.getElementById('timerCount').innerHTML =
+                `${s.toFixed(1)} <span>sec</span>`;
+            // logarithmic fake fill capped at 88%
+            const pct = Math.min(88, (Math.log(s + 1) / Math.log(180)) * 100);
+            document.getElementById('barFill').style.width = pct + '%';
+        }, 80);
+    }
+
+    function stopTimer(elapsedSeconds) {
+        clearInterval(timerInterval);
+        document.getElementById('timerBlock').classList.remove('visible');
+        document.getElementById('barFill').style.width = '100%';
+
+        if (elapsedSeconds != null) {
+            const label = elapsedSeconds >= 60
+                ? `${Math.floor(elapsedSeconds/60)}m ${(elapsedSeconds%60).toFixed(1)}s`
+                : `${elapsedSeconds.toFixed(2)}s`;
+            document.getElementById('timeTag').textContent = `⏱ ${label}`;
+        }
+    }
+
+    // ── UI ────────────────────────────────────────────────
+    function setBusy(busy) {
+        const btn = document.getElementById('submitBtn');
+        const inp = document.getElementById('urlInput');
+        btn.disabled = busy;
+        btn.textContent = busy ? '…' : 'Run →';
+        inp.disabled = busy;
+    }
+
+    function showResult(status, text, source, lang, elapsed) {
+        stopTimer(elapsed);
+        setBusy(false);
+
+        const block    = document.getElementById('resultBlock');
+        const sourceTag = document.getElementById('sourceTag');
+        const langTag  = document.getElementById('langTag');
+        const box      = document.getElementById('transcriptBox');
+
+        box.value = text;
+        langTag.textContent = (lang || 'unknown').toUpperCase();
+
+        if (status === 'success') {
+            sourceTag.className = 'tag success';
+            sourceTag.textContent = source === 'youtube_captions' ? 'NATIVE YT' : 'WHISPER AI';
+        } else {
+            sourceTag.className = 'tag error';
+            sourceTag.textContent = 'ERROR';
         }
 
-        function setUIState(state) {
-            const btn = document.getElementById('submitBtn');
-            const spinner = document.getElementById('spinner');
-            const resultsArea = document.getElementById('resultsArea');
-            const urlInput = document.getElementById('urlInput');
+        block.classList.add('visible');
+    }
 
-            if (state === 'loading') {
-                btn.disabled = true;
-                btn.innerText = 'Processing...';
-                urlInput.disabled = true;
-                resultsArea.classList.remove('visible');
-                spinner.classList.add('visible');
-            } else if (state === 'idle') {
-                btn.disabled = false;
-                btn.innerText = 'Transcribe';
-                urlInput.disabled = false;
-                spinner.classList.remove('visible');
-            }
-        }
+    // ── Transcribe ────────────────────────────────────────
+    async function transcribe() {
+        const url = document.getElementById('urlInput').value.trim();
+        if (!url) { alert('Enter a YouTube URL first'); return; }
 
-        function showResult(status, text, source) {
-            setUIState('idle');
-            const resultsArea = document.getElementById('resultsArea');
-            const statusBadge = document.getElementById('statusBadge');
-            const statusText = document.getElementById('statusText');
-            const transcriptBox = document.getElementById('transcriptBox');
+        setBusy(true);
+        clearInterval(pollInterval);
+        startTimer('fetching captions…');
 
-            resultsArea.classList.add('visible');
-            transcriptBox.value = text;
-
-            // Reset classes
-            statusBadge.className = 'status-badge';
-            
-            if (status === 'success') {
-                statusBadge.classList.add('success');
-                let sourceLabel = source === 'youtube_captions' ? 'Native Captions' : 'Whisper AI generated';
-                statusText.innerText = `Success (${sourceLabel})`;
-            } else if (status === 'error') {
-                statusBadge.classList.add('error');
-                statusText.innerText = `Error`;
-            }
-        }
-
-        async function transcribe() {
-            const url = document.getElementById('urlInput').value.trim();
-            if (!url) {
-                alert('Please enter a valid YouTube URL');
-                return;
-            }
-
-            setUIState('loading');
-            clearInterval(pollInterval); // Clear any existing polling
-
-            try {
-                if (mode === 'sync') {
-                    // SYNCHRONOUS REQUEST
-                    const res = await fetch('/captions/sync', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: url })
-                    });
-                    
-                    const data = await res.json();
-                    
-                    if (res.ok) {
-                        showResult('success', data.text, data.source);
-                    } else {
-                        showResult('error', data.detail || 'An error occurred during transcription.', '');
-                    }
-
+        try {
+            if (mode === 'sync') {
+                const res  = await fetch('/captions/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showResult('success', data.text, data.source, data.language, data.elapsed_seconds);
                 } else {
-                    // ASYNCHRONOUS REQUEST (Background Job)
-                    const res = await fetch('/captions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: url })
-                    });
-                    
-                    const data = await res.json();
-                    
-                    if (res.ok && data.job_id) {
-                        pollJobStatus(data.job_id);
-                    } else {
-                        showResult('error', data.detail || 'Failed to start background job.', '');
-                    }
+                    showResult('error', data.detail || 'Something went wrong.', '', '', null);
                 }
-            } catch (err) {
-                showResult('error', 'Network error or server is unreachable.', '');
+
+            } else {
+                const res  = await fetch('/captions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                if (res.ok && data.job_id) {
+                    document.getElementById('timerLabel').textContent = 'running whisper…';
+                    pollJobStatus(data.job_id);
+                } else {
+                    showResult('error', data.detail || 'Failed to start job.', '', '', null);
+                }
             }
+        } catch (e) {
+            showResult('error', 'Network error — is the server running?', '', '', null);
         }
+    }
 
-        async function pollJobStatus(jobId) {
-            const statusBadge = document.getElementById('statusBadge');
-            const statusText = document.getElementById('statusText');
-            const resultsArea = document.getElementById('resultsArea');
-            const transcriptBox = document.getElementById('transcriptBox');
-            
-            // Show polling status
-            resultsArea.classList.add('visible');
-            statusBadge.className = 'status-badge processing';
-            statusText.innerText = 'Transcribing with AI (this may take a few minutes)...';
-            transcriptBox.value = 'Downloading audio and running Whisper models...';
+    // ── Async polling ─────────────────────────────────────
+    function pollJobStatus(jobId) {
+        pollInterval = setInterval(async () => {
+            try {
+                const res  = await fetch(`/status/${jobId}`);
+                const data = await res.json();
 
-            pollInterval = setInterval(async () => {
-                try {
-                    const res = await fetch(`/status/${jobId}`);
-                    const data = await res.json();
-
-                    if (data.status === 'done') {
-                        clearInterval(pollInterval);
-                        showResult('success', data.result.text, data.result.source);
-                    } else if (data.status === 'failed') {
-                        clearInterval(pollInterval);
-                        showResult('error', data.error || 'Transcription job failed.', '');
-                    }
-                } catch (err) {
-                    console.error("Polling error", err);
+                if (data.elapsed_seconds) {
+                    document.getElementById('serverElapsed').textContent =
+                        `server: ${data.elapsed_seconds.toFixed(1)}s`;
                 }
-            }, 3000); // Poll every 3 seconds
-        }
-    </script>
+
+                if (data.status === 'done') {
+                    clearInterval(pollInterval);
+                    const r = data.result;
+                    showResult('success', r.text, r.source, r.language, r.elapsed_seconds);
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showResult('error', data.error || 'Job failed.', '', '', null);
+                }
+            } catch (e) {
+                console.error('poll error', e);
+            }
+        }, 3000);
+    }
+
+    // ── Copy ──────────────────────────────────────────────
+    function copyText() {
+        const box = document.getElementById('transcriptBox');
+        navigator.clipboard.writeText(box.value).then(() => {
+            const btn = document.querySelector('.copy-btn');
+            btn.textContent = 'copied ✓';
+            setTimeout(() => btn.textContent = 'copy transcript', 2000);
+        });
+    }
+</script>
 </body>
 </html>
