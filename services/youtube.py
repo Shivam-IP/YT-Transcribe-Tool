@@ -3,7 +3,6 @@ from typing import Optional
 
 
 def extract_video_id(url: str) -> str:
-    """Extract YouTube video ID from various URL formats."""
     patterns = [
         r"(?:v=|\/)([0-9A-Za-z_-]{11}).*",
         r"(?:youtu\.be\/)([0-9A-Za-z_-]{11})",
@@ -19,71 +18,106 @@ def extract_video_id(url: str) -> str:
 
 def get_youtube_captions(video_id: str, languages: list = None) -> Optional[dict]:
     """
-    Try to fetch captions directly from YouTube — no download needed.
-    Priority: manual captions → auto-generated → any available language.
-    Returns None if no captions are available.
+    Fast path — fetch captions directly from YouTube.
+    No download, no ffmpeg, no Whisper — pure HTTP call.
+    Supports both new (>=0.7.x) and old (<0.7.x) API versions.
+    Returns None if unavailable → caller falls back to yt-dlp + Whisper.
     """
     try:
-        from youtube_transcript_api import (
-            YouTubeTranscriptApi,
-            NoTranscriptFound,
-            TranscriptsDisabled,
-        )
+        from youtube_transcript_api import YouTubeTranscriptApi
     except ImportError:
         raise RuntimeError("Run: pip install youtube-transcript-api")
 
-    languages = languages or ["en", "en-US", "en-GB"]
+    languages = languages or ["en", "en-US", "en-GB", "hi"]  # added Hindi too
 
+    # ── New API (>= 0.7.x) ──────────────────────────────────────────
     try:
+        api = YouTubeTranscriptApi()
+
+        # Try preferred languages first
+        try:
+            fetched = api.fetch(video_id, languages=languages)
+            segments = list(fetched)
+            if segments:
+                return _build_result(segments, languages[0], api_version="new")
+        except Exception:
+            pass
+
+        # Fallback: fetch any available language
+        try:
+            fetched = api.fetch(video_id)
+            segments = list(fetched)
+            if segments:
+                return _build_result(segments, "auto", api_version="new")
+        except Exception:
+            pass
+
+    except Exception:
+        pass
+
+    # ── Old API (< 0.7.x) ───────────────────────────────────────────
+    try:
+        from youtube_transcript_api import NoTranscriptFound, TranscriptsDisabled
+
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         transcript = None
 
-        # Priority 1: manual captions in preferred language
+        # Manual captions first
         try:
             transcript = transcript_list.find_manually_created_transcript(languages)
-            source_type = "manual"
-        except NoTranscriptFound:
+        except Exception:
             pass
 
-        # Priority 2: auto-generated captions
+        # Auto-generated captions
         if not transcript:
             try:
                 transcript = transcript_list.find_generated_transcript(languages)
-                source_type = "auto-generated"
-            except NoTranscriptFound:
+            except Exception:
                 pass
 
-        # Priority 3: any language available
+        # Any available language
         if not transcript:
             for t in transcript_list:
                 transcript = t
-                source_type = "other-language"
                 break
 
-        if not transcript:
-            return None
+        if transcript:
+            segments = transcript.fetch()
+            return _build_result(segments, transcript.language_code, api_version="old")
 
-        segments = transcript.fetch()
-        full_text = " ".join(s["text"] for s in segments)
-
-        return {
-            "source": "youtube_captions",   
-            "language": transcript.language_code,
-            "text": full_text,
-            "segments": [
-                {
-                    "start": round(s["start"], 2),
-                    "duration": round(s.get("duration", 0.0), 2),
-                    "end": round(s["start"] + s.get("duration", 0.0), 2),
-                    "text": s["text"],
-                }
-                for s in segments
-            ],
-        }
-
-    except TranscriptsDisabled:
-        return None
     except Exception as e:
-        # Log and return None so caller falls back to Whisper
-        print(f"[youtube] captions unavailable: {e}")
-        return None
+        print(f"[youtube] old API failed: {e}")
+
+    print(f"[youtube] no captions found for {video_id} — will fallback to Whisper")
+    return None
+
+
+def _build_result(segments, language: str, api_version: str) -> dict:
+    """Build standardised result dict from segments (works for both API versions)."""
+
+    def get_attr(seg, key, default=0.0):
+        """Works for both object-style (new API) and dict-style (old API)."""
+        if isinstance(seg, dict):
+            return seg.get(key, default)
+        return getattr(seg, key, default)
+
+    result_segments = []
+    for s in segments:
+        start    = get_attr(s, "start")
+        duration = get_attr(s, "duration")
+        text     = get_attr(s, "text") or ""
+        result_segments.append({
+            "start":    round(start, 2),
+            "duration": round(duration, 2),
+            "end":      round(start + duration, 2),
+            "text":     text,
+        })
+
+    full_text = " ".join(s["text"] for s in result_segments)
+
+    return {
+        "source":   "youtube_captions",
+        "language": language,
+        "text":     full_text,
+        "segments": result_segments,
+    }
